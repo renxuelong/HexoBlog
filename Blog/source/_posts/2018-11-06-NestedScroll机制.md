@@ -19,6 +19,8 @@ tags:
 
 <!-- more -->
 
+![NestedScroll](https://raw.githubusercontent.com/renxuelong/HexoBlog/master/Resource/nested_stcoll.gif)
+
 在开发时如果只时为 InnerScrollView 设置对应的高度，最终效果就会是 InnerScrollView 部分并不能滑动，并且如果高度不够时 InnerScrollView 内容会展示不全。为了解决这个问题我们可以通过自定义 ScrollView 修改事件分发方法来实现 InnerScrollView 支持滑动，但是其滑动到顶部或者底部时并不能平滑的将滑动事件交给外部的 ScrollView。
 
 这时候我们可以进一步改写 ScrollView 的事件分发方法使其支持 InnerScrollView 滑动到底部或者顶部后的其他事件重新由 Out 来处理，但在同一个事件序列中，InnerScrollView 就再也不能处理滑动事件了。所以这时候为了实现图中的效果我们就必须通过其他的方式来实现。
@@ -81,7 +83,7 @@ tags:
 
 NestedScrollView 是一个类似于 ScrollView 的类，但是它支持对父 View 和子 View 都可以滑动时的情况的处理。这个类实现了 ScrollingView，所以支持对内容的滑动。
 
-```
+``` java
 public class NestedScrollView extends FrameLayout implements NestedScrollingParent,
         NestedScrollingChild2, ScrollingView {
     // ...
@@ -98,7 +100,7 @@ public class NestedScrollView extends FrameLayout implements NestedScrollingPare
 
 滑动事件的处理是从触摸事件中产生的，所以我们从事件的分发方法开始分析 NestedScrollView 类的工作过程。NestedScrollView 没有重写 dispatchTouchEvent 方法，重写了事件拦截和事件处理方法。那我们就从事件拦截开始分析。
 
-```
+``` java
 @Override
 public boolean onInterceptTouchEvent(MotionEvent ev) {
    /*
@@ -218,7 +220,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 #### 1. startNestedScroll 方法
 NestedScrollView 的 startNestedScroll 方法中，调用了 mChildHelper 对象的 startNestedScroll 方法，这个 mChildHelper 是 NestedScrollingChildHelper 类的对象，这个类的主要指责是帮助绑定的 NestedScrollView 完成滑动的过程。在构造方法中将绑定的 NestedScrollView 保存。下面是 startNestedScroll 方法的代码。
 
-```
+``` java
 // NestedScrollingChildHelper
 
 // 为当前绑定的 View 启动一个嵌套滑动
@@ -256,7 +258,7 @@ public boolean startNestedScroll(@ScrollAxis int axes, @NestedScrollType int typ
 
 这里同步看一下 NestedScrollView 实现的 NestedScrollingParent 接口的 onStartNestedScroll 中的判断过程,很简单，只是判断了一下滑动方向是否是垂直方向的。
 
-```
+``` java
 @Override
 public boolean onStartNestedScroll(View child, View target, int nestedScrollAxes) {
     return (nestedScrollAxes & ViewCompat.SCROLL_AXIS_VERTICAL) != 0;
@@ -269,7 +271,7 @@ public boolean onStartNestedScroll(View child, View target, int nestedScrollAxes
 
 同 startNestedScroll 方法一样，stopNestedScroll 方法也是由 NestedScrollingChildHelper 来实现。停止的方法比较简单，主要就是将滑动状态和滑动过程中的一些变量置空。
 
-```
+``` java
 public void stopNestedScroll(@NestedScrollType int type) {
     ViewParent parent = getNestedScrollingParentForType(type);
     if (parent != null) {
@@ -300,7 +302,7 @@ public void onStopNestedScroll(@NonNull View target, @NestedScrollType int type)
 
 分析了事件的拦截，就该分析事件的处理了，这才是重中之重，也是代码量最多的部分
 
-```
+``` java
 @Override
 public boolean onTouchEvent(MotionEvent ev) {
     // 检查跟踪器
@@ -397,7 +399,7 @@ public boolean onTouchEvent(MotionEvent ev) {
 
 按下和抬起事件比较简单，需要注意的就是抬起的时候，需要将正在执行的滚动动画停止，抬起的时候还需要判断是否需要启动 fling 滑动状态。fling 效果的实现代码如下：
 
-```
+``` java
 // NestedScrollView
 private void flingWithNestedDispatch(int velocityY) {
     final int scrollY = getScrollY();
@@ -445,7 +447,7 @@ public boolean onNestedPreFling(View target, float velocityX, float velocityY) {
 
 **Tips：在子 View 的 onTouchEvent 中，ACTION_UP 事件到来时，需要考虑 Fling 效果的处理**
 
-```
+``` java
 // NestedScrollView
 public void fling(int velocityY) {
     if (getChildCount() > 0) {
@@ -465,7 +467,7 @@ public void fling(int velocityY) {
 
 #### 2. 滑动过程中 ACTION_MOVE 事件的处理
 
-```
+``` java
 // NestedScrollView 的 onTouchEvent 方法中 ACTION_MOVE 事件对应代码
 {
     final int activePointerIndex = ev.findPointerIndex(mActivePointerId);
@@ -559,7 +561,7 @@ public void fling(int velocityY) {
 
 如果由当前的 NestedScrollView 处理滑动，在 MOVE 事件发生时，会调用 dispatchNestedPreScroll 方法，其中会调用 NestedScrollingChildHelper 的 dispatchNestedPreScroll 方法。其作用为，将滑动产生前的 preScroll 操作分发到当前 View 的父 View。
 
-```
+``` java
 // NestedScrollingChildHelper
 public boolean dispatchNestedPreScroll(int dx, int dy, @Nullable int[] consumed,
         @Nullable int[] offsetInWindow, @NestedScrollType int type) {
@@ -622,7 +624,7 @@ public void onNestedPreScroll(View target, int dx, int dy, int[] consumed) {
 
 处理完 preScroll 操作后，如果当前 NestedScrollView 进入了拖拽状态，就会先计算可以滑动的范围大小等数据，然后调用 overScrollByCompat 方法，这个方法中调用了 onOverScrolled 这个方法。onOverScrolled 非常重要，因为在这个方法中调用了真正执行内容滑动的代码。调用 overScrollByCompat 方法时会将需要滑动的距离通过参数的形式传递。
 
-```
+``` java
 // NestedScrollView 
 
 // 重要方法，其中会调用 onOverScrolled
@@ -697,7 +699,7 @@ protected void onOverScrolled(int scrollX, int scrollY,
 
 当前 NestedScrollView 完成对其内容的滑动后，接着计算除自己消耗 和已经产生的滑动之外还需要滑动的距离，然后调用 dispatchNestedScroll 方法，该方法中会调用 NestedScrollingChildHelper 的 dispatchNestedScroll 方法。
 
-```
+``` java
 // NestedScrollingChildHelper
 
 // 分发嵌套滑动进度中的一个到父 View
@@ -765,7 +767,7 @@ NestedScrollingChildHelper 的 dispatchNestedScroll 方法中，会判断是否�
 
 到这里，NestedScrollView 这个类以及相关联的 NestedScrollingParent、NestedScrollingChild 这两个接口的工作过程就分析完了。
 
-## 三、延伸
+## 四、延伸
 
 通过对 NestedScrollView 类的分析，我们发现，大多数的事件都是会先分发到子 View，再由子 View 通过接口方法分发事件到父 View 或者自己处理，并且通过这些接口方法的返回值子 View 也能直到父 View 是否完全消耗了滑动的距离。
 
@@ -789,7 +791,7 @@ NestedScrollingChildHelper 的 dispatchNestedScroll 方法中，会判断是否�
 
 7. 通过这几个接口方法的配合使用完成想要的效果
 
-## 四、总结
+## 五、总结
 
 延伸部分其实就是抽象了 NestedScrollView 类的实现过程。在开发中，我们可以根据需求，灵活的搭配这两个接口的所有方法。没有固定的前后顺序。
 
