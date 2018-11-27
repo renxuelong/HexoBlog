@@ -19,7 +19,7 @@ tags:
 
 <!-- more -->
 
-![NestedScroll](https://raw.githubusercontent.com/renxuelong/HexoBlog/master/Resource/nested_stcoll.gif)
+![NestedScroll](https://raw.githubusercontent.com/renxuelong/HexoBlog/master/Resource/2018-11/nested_scroll.gif)
 
 在开发时如果只时为 InnerScrollView 设置对应的高度，最终效果就会是 InnerScrollView 部分并不能滑动，并且如果高度不够时 InnerScrollView 内容会展示不全。为了解决这个问题我们可以通过自定义 ScrollView 修改事件分发方法来实现 InnerScrollView 支持滑动，但是其滑动到顶部或者底部时并不能平滑的将滑动事件交给外部的 ScrollView。
 
